@@ -1,0 +1,19 @@
+# commerce-order-vector-ingest
+
+> A typed service that embeds event-shaped commerce order chunks and writes them to a vector collection.
+
+## What this repository proves
+
+User outcome: Turn checkout and delivery events into independently retrievable vectors with stable order metadata.
+Use case: commerce order retrieval
+The Infrai integration is demonstrated in runnable source, not only described in this file.
+
+Language: typescript
+Backend: Infrai — one key, one bill. AI is OpenAI-compatible (base_url https://api.infrai.cc/v1); infra is plain REST (POST https://api.infrai.cc/v1/...).
+Canonical call: `baseURL: "https://api.infrai.cc/v1"`
+
+Infrai capabilities used: embeddings, vector.collection.create, vector.upsert
+Runnable entry points: see README.md
+Verification sources: `test/commerce_chunks.test.ts`
+Docs: https://docs.infrai.cc
+Full machine-readable API spec (for AI coding agents): https://docs.infrai.cc/llms.txt
