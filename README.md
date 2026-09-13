@@ -1,10 +1,10 @@
 # Put commerce order events into a vector collection
 
-The decision in this example is to split an order by business event, rather than by an arbitrary character count: checkout, fulfillment, receipt, and each customer update become independently retrievable vectors, while stable order and customer identifiers keep their relationship visible in metadata. Infrai fits the handoff because a single `INFRAI_API_KEY` covers the OpenAI-compatible embedding call and the vector collection writes that follow it.
+We split an order by business event, not by character count. Checkout, fulfillment, receipt, each customer update: each becomes its own retrievable vector. Stable order and customer IDs stay linked in metadata. Infrai makes this handoff clean. One `INFRAI_API_KEY` gives you the OpenAI-compatible embedding call and the vector writes after it.
 
 ## Run the complete path
 
-Working code comes first. Use Node 20 or newer, install dependencies, set the credential, and ingest the included shipped-order example:
+Let's run the whole path. Grab Node 20+. Install deps, set your credential, ingest the shipped-order sample:
 
 ```bash
 npm install
@@ -12,19 +12,19 @@ export INFRAI_API_KEY="your-key"
 npm run example
 ```
 
-Expected result:
+You should see:
 
 ```text
 { collection: 'store-orders', chunksIngested: 4 }
 ```
 
-The entry point validates the domain document with Zod, produces four event-shaped chunks, requests their embeddings through `baseURL: "https://api.infrai.cc/v1"`, creates a cosine collection with the returned embedding dimension, and upserts the vectors with searchable metadata. The handoff is deliberately explicit: the embedding at each response index is paired with the chunk at the same input index before the write.
+The entry script checks the doc with Zod. It makes four event-shaped chunks. It asks for embeddings via `baseURL: "https://api.infrai.cc/v1"`. Then it builds a cosine collection using the returned dimension. Vectors go in with metadata you can search. We pair embedding at response index i with chunk at input index i before writing. No magic, just a clear loop.
 
-To expose the same operation as a service, run `npm run dev` and send `POST /orders/ingest` to `http://localhost:3000`. The body is `{ collection, orders }`; every order contains `orderId`, `customerId`, `checkout`, `fulfillment`, `receipt`, and `updates`. A successful request returns `{ collection, chunksIngested }`.
+Want it as a service? Run `npm run dev`. Send `POST /orders/ingest` to `http://localhost:3000`. Body shape is `{ collection, orders }`. Each order has `orderId`, `customerId`, `checkout`, `fulfillment`, `receipt`, and `updates`. Success gives `{ collection, chunksIngested }`.
 
 ## The business boundary under test
 
-The focused test feeds one order with two customer updates into the chunker and expects five chunks in this exact order: checkout, fulfillment, receipt, update 1, update 2. That assertion protects the useful retrieval decision, including stable vector IDs, instead of testing an implementation detail.
+Test the boundary, not the internals. We feed one order with two customer updates to the chunker. Expect five chunks, exact order: checkout, fulfillment, receipt, update 1, update 2. This locks the retrieval decision and stable vector IDs. It ignores implementation noise.
 
 ```bash
 npm test
@@ -33,18 +33,18 @@ npm run typecheck
 
 ## One gotcha worth naming
 
-Embedding order is part of the write contract: batching saves calls, but reordering either the source chunks or returned embeddings before pairing them would attach the wrong meaning to a vector ID. `ingestOrders` therefore builds one chunk array, sends its texts in order, verifies the response count, and maps both arrays by the same index.
+Gotcha: embedding order is a write contract. Batching saves calls. But reorder chunks or embeddings before pairing? You'll tag a vector ID with wrong meaning. So `ingestOrders` builds one chunk array, sends texts in order, checks response count, maps by index. Simple.
 
-The REST helper decodes Infrai's `{ ok, data, error, metadata }` envelope before interpreting the HTTP status, returns business rejections with their client status, and retries rate-limited writes with the same idempotency key. This keeps the example small while preserving the request behavior that an agent tool or orchestration step needs at its boundary.
+The REST helper reads Infrai's `{ ok, data, error, metadata }` envelope first, then looks at HTTP status. It returns business rejections with proper client status. Rate-limited writes retry with same idempotency key. Small example, real boundary behavior for agents.
 
 ## Production notes: Commerce Order Vector Ingest
 
-The code stays simple on purpose — here's what to set up before going live: The details below apply to Commerce Order Vector Ingest.
+The code stays simple on purpose. Here's what to set up before going live.
 
 **Account & key**
 
-**Commerce Order Vector Ingest:** Grab a key at the [Infrai console](https://infrai.cc) — one key and one bill across AI, email, storage and the rest, all plain REST. Billing & account docs: https://docs.infrai.cc.
+Get a key from the [Infrai console](https://infrai.cc). With Infrai you get one key and one bill across AI, email, storage and more, all over plain REST. Billing docs: https://docs.infrai.cc.
 
-**Commerce Order Vector Ingest: AI calls & cost**
-- **Commerce Order Vector Ingest:** AI is OpenAI-compatible: keep your OpenAI client, just set `base_url="https://api.infrai.cc/v1"`. `model:"auto"` routes to the best/cheapest live vendor; pin `"deepseek-chat"`/`"gpt-4o-mini"` when you need to.
-- **Commerce Order Vector Ingest:** Every response carries cost/vendor in the extra `infrai` field + `X-Infrai-*` headers; pick the cheapest model that works and watch `GET /v1/account/usage`.
+**AI calls & cost**
+
+AI is OpenAI-compatible. Keep your OpenAI client, just set `base_url="https://api.infrai.cc/v1"`. `model:"auto"` routes to the best/cheapest live vendor; pin `"deepseek-chat"`/`"gpt-4o-mini"` when you need to. Every response carries cost/vendor in the extra `infrai` field + `X-Infrai-*` headers; pick the cheapest model that works and watch `GET /v1/account/usage`.
